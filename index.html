@@ -85,7 +85,7 @@ function load(){
     d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{};
     if(d.waterGoal==null) d.waterGoal=2500; if(d.stepGoal==null) d.stepGoal=8000;
     return d; } }catch(e){}
-  return { unit:"lb", heightCm:null, sex:"male", age:null, activity:1.2, bodyFat:null, customTarget:null,
+  return { unit:"lb", heightCm:null, sex:"male", age:null, activity:1.2, bodyFat:null, customTarget:null, proteinGoal:null,
     startWeight:0, goalWeight:null, weights:[],
     workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, waterGoal:2500, stepGoal:8000 };
 }
@@ -159,7 +159,8 @@ function renderToday(){
   const woList=state.workouts[tk]||[];
   const woKcal=woList.reduce((a,w)=>a+(Number(w.kcal)||0),0);
   const drinkCal=(state.drinks[tk]||[]).reduce((a,d)=>a+(Number(d.calories)||0),0);
-  const mealCal=mealTotals(state.meals[tk]||[]).cal;
+  const mt=mealTotals(state.meals[tk]||[]);
+  const mealCal=mt.cal, protein=Math.round(mt.protein);
   const eaten=Math.round(mealCal+drinkCal);
   const burned=woKcal+stepKcal(steps);
   const t=targetIntake(), main=tdee();
@@ -184,6 +185,15 @@ function renderToday(){
     </div>
     <p class="muted" style="font-size:12px;margin-top:10px">${t.custom?'Manual target — change it on the Weight tab.':'~500 kcal/day under maintenance = about 1 lb/week.'+(t.clamped?` Floored at ${t.floor} kcal so it stays safe.`:'')} Estimate, not medical advice.</p></div>`;
   }
+
+  html += `<div class="card"><div class="label">Protein today</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
+      <span class="mono stat" style="color:var(--progress)">${protein}g</span>
+      ${state.proteinGoal?`<span class="muted">/ ${state.proteinGoal}g goal</span>`:`<span class="muted">— set a goal on the Meals tab</span>`}
+    </div>
+    ${state.proteinGoal?`<div class="bar" style="margin-top:8px"><div style="width:${Math.min(100,protein/state.proteinGoal*100)}%;background:var(--progress)"></div></div>
+      <div class="muted" style="font-size:12px;margin-top:6px">${protein>=state.proteinGoal?'goal hit 💪':(state.proteinGoal-protein)+'g to go'}</div>`:''}
+  </div>`;
 
   html += `<div class="grid2">
     <div class="card" style="margin:0">
@@ -360,6 +370,7 @@ function setSex(v){ state.sex=v; save(); render(); }
 function setActivity(v){ state.activity=parseFloat(v); save(); render(); }
 function setBodyFat(v){ state.bodyFat=v===""?null:Math.max(0,Math.min(75,parseFloat(v))); save(); render(); }
 function setCustomTarget(v){ const n=parseFloat(v); state.customTarget=(v===""||isNaN(n)||n<=0)?null:Math.round(n); save(); render(); }
+function setProteinGoal(v){ const n=parseFloat(v); state.proteinGoal=(v===""||isNaN(n)||n<=0)?null:Math.round(n); save(); render(); }
 
 /* ================= WORKOUTS ================= */
 function renderWorkouts(){
@@ -465,9 +476,14 @@ function renderMeals(){
   html+=`</div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-    <div class="card" style="margin:0;text-align:center"><div class="label">Protein</div><div class="mono stat" style="color:var(--progress)">${Math.round(t.protein)}g</div></div>
+    <div class="card" style="margin:0;text-align:center"><div class="label">Protein</div><div class="mono stat" style="color:var(--progress)">${Math.round(t.protein)}${state.proteinGoal?`<span style="font-size:12px;color:var(--muted)">/${state.proteinGoal}</span>`:''}g</div></div>
     <div class="card" style="margin:0;text-align:center"><div class="label">Carbs</div><div class="mono stat">${Math.round(t.carbs)}g</div></div>
     <div class="card" style="margin:0;text-align:center"><div class="label">Fat</div><div class="mono stat">${Math.round(t.fat)}g</div></div>
+  </div>
+
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+    <span class="label">Daily protein goal</span>
+    <input type="number" inputmode="numeric" value="${state.proteinGoal??''}" placeholder="set g" onchange="setProteinGoal(this.value)" style="width:110px">
   </div>
 
   <div class="card"><div class="label">Add food</div>
