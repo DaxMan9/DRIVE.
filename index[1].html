@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15171F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DRIVE">
+<title>DRIVE</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2315171F'/%3E%3Ctext x='50' y='68' font-size='54' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3ED%3C/text%3E%3Ccircle cx='74' cy='62' r='6' fill='%23EE4D2D'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{ --ink:#15171F; --paper:#F1F2ED; --card:#FFFFFF; --effort:#EE4D2D;
+    --progress:#0E9C7E; --muted:#6C7280; --line:#E2E3DC; --soft:#F7F8F4; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper); color:var(--ink); max-width:540px; margin:0 auto; min-height:100vh;
+    padding:18px 16px calc(84px + env(safe-area-inset-bottom)); }
+  .mono{font-family:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;}
+  header{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;}
+  .logo{font-weight:800; font-size:22px; letter-spacing:-.5px;}
+  .logo span{color:var(--effort);}
+  .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+  nav{display:flex; gap:5px; background:var(--card); padding:5px; border-radius:14px;
+      border:1px solid var(--line); position:sticky; top:8px; z-index:20; margin-bottom:18px;}
+  nav button{flex:1; border:none; background:transparent; color:var(--muted); font-weight:600;
+      font-size:11px; padding:9px 1px; border-radius:10px; cursor:pointer; white-space:nowrap;}
+  nav button.on{background:var(--ink); color:#fff;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px;}
+  .label{font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); font-weight:700;}
+  .muted{color:var(--muted); font-size:13px; line-height:1.5;}
+  h3.sec{font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:20px 0 10px;}
+  input,select{padding:11px 12px; border-radius:10px; border:1px solid var(--line); font-size:15px;
+      background:var(--soft); color:var(--ink); outline:none; width:100%; -webkit-appearance:none;}
+  input:focus,select:focus{outline:2px solid var(--effort); outline-offset:1px;}
+  .row{display:flex; gap:8px;}
+  button.primary{background:var(--ink); color:#fff; border:none; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600; cursor:pointer;}
+  button.ghost{background:var(--soft); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; font-weight:600; cursor:pointer;}
+  .big{font-weight:800; font-size:44px; line-height:1; letter-spacing:-1px;}
+  .stat{font-weight:700; font-size:22px;}
+  .pill{font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; display:inline-block;}
+  .down{color:var(--progress); background:#E6F5F1;}
+  .item{display:flex; justify-content:space-between; align-items:flex-start; padding:11px 0; border-top:1px solid var(--soft);}
+  .del{background:transparent; border:none; color:var(--muted); cursor:pointer; padding:6px; font-size:16px; flex-shrink:0;}
+  .datebar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .datebar button{background:transparent;border:none;font-size:20px;color:var(--ink);cursor:pointer;padding:6px 12px;}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff;
+      padding:11px 18px; border-radius:30px; font-size:14px; font-weight:600; z-index:100; opacity:0; transition:opacity .2s; pointer-events:none;}
+  .toast.show{opacity:1;}
+  .exline{display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:5px 0;}
+  .tag{font-size:11px; font-weight:700; color:var(--progress); background:#E6F5F1; padding:2px 8px; border-radius:20px;}
+  .bar{height:10px; background:var(--line); border-radius:6px; overflow:hidden;}
+  .bar > div{height:100%;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  svg text{font-family:ui-monospace,monospace;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+  <header>
+    <div><div class="logo">DRIVE<span>.</span></div><div class="sub">your training log, on your phone</div></div>
+    <div class="mono" style="font-size:12px;color:var(--muted);text-align:right" id="todayLabel"></div>
+  </header>
+  <nav>
+    <button id="tab-today" class="on" onclick="setTab('today')">Today</button>
+    <button id="tab-weight" onclick="setTab('weight')">Weight</button>
+    <button id="tab-workouts" onclick="setTab('workouts')">Workouts</button>
+    <button id="tab-meals" onclick="setTab('meals')">Meals</button>
+    <button id="tab-water" onclick="setTab('water')">Water</button>
+    <button id="tab-data" onclick="setTab('data')">Data</button>
+  </nav>
+  <main id="main"></main>
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- state ---------------- */
+const KEY="drive-data-v3";
+let state=load(), tab="today", drinkDate=todayKey(), woDate=todayKey(), mealDate=todayKey();
+let draftWO={ title:"", minutes:"", intensity:"moderate", note:"", exercises:[] };
+
+function load(){
+  try{ const raw=localStorage.getItem(KEY); if(raw){ const d=JSON.parse(raw);
+    d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{};
+    if(d.waterGoal==null) d.waterGoal=2500; if(d.stepGoal==null) d.stepGoal=8000;
+    return d; } }catch(e){}
+  return { unit:"lb", heightCm:null, sex:"male", age:null, activity:1.2, bodyFat:null, customTarget:null,
+    startWeight:0, goalWeight:null, weights:[],
+    workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, waterGoal:2500, stepGoal:8000 };
+}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ toast("Couldn't save"); } }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+
+/* ---------------- dates ---------------- */
+function pad(n){ return String(n).padStart(2,"0"); }
+function keyOf(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function todayKey(){ return keyOf(new Date()); }
+function fromKey(k){ const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); }
+function pretty(k){ if(k===todayKey())return"Today"; if(k===keyOf(new Date(Date.now()-864e5)))return"Yesterday";
+  return fromKey(k).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}); }
+function weekDates(k){ const d=fromKey(k),day=(d.getDay()+6)%7,mon=new Date(d); mon.setDate(d.getDate()-day);
+  return Array.from({length:7},(_,i)=>{const x=new Date(mon);x.setDate(mon.getDate()+i);return keyOf(x);}); }
+document.getElementById("todayLabel").innerHTML =
+  new Date().toLocaleDateString(undefined,{weekday:"long"})+"<br>"+new Date().toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+/* ---------------- helpers / calcs ---------------- */
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function curWeight(){ const w=state.weights.slice().sort((a,b)=>a.date.localeCompare(b.date)); return w.length?w[w.length-1].val:state.startWeight; }
+function toKg(v){ return state.unit==="kg"? v : v/2.2046; }
+function curKg(){ return toKg(curWeight()); }
+function bmr(){
+  const kg=curKg();
+  if(state.bodyFat){ const lbm=kg*(1-state.bodyFat/100); return 370 + 21.6*lbm; }
+  if(!state.heightCm || !state.age) return null;
+  const base=10*kg + 6.25*state.heightCm - 5*state.age;
+  return state.sex==="female" ? base-161 : base+5;
+}
+function bmrFormula(){ return state.bodyFat ? "Katch–McArdle" : "Mifflin–St Jeor"; }
+function tdee(){ const b=bmr(); return b==null?null:Math.round(b*state.activity); }
+function calorieFloor(){ return state.sex==="female"?1200:1500; }
+function calcTarget(){ const t=tdee(); if(t==null) return null; const floor=calorieFloor(); return Math.max(floor,t-500); }
+function targetIntake(){
+  if(state.customTarget) return { value:state.customTarget, custom:true };
+  const t=tdee(); if(t==null) return null;
+  const raw=t-500, floor=calorieFloor(); return { value:Math.max(floor,raw), clamped:raw<floor, floor }; }
+const MET={ light:3.0, moderate:5.0, vigorous:7.0, max:9.0 };
+const MET_LABEL={ light:"Light", moderate:"Moderate", vigorous:"Vigorous", max:"Very hard" };
+const EXERCISES={
+  Chest:["Bench Press","Incline Dumbbell Press","Push-up","Chest Fly","Cable Crossover"],
+  Back:["Pull-up","Bent-over Row","Lat Pulldown","Seated Cable Row","Deadlift"],
+  Legs:["Back Squat","Leg Press","Romanian Deadlift","Walking Lunge","Leg Curl"],
+  Shoulders:["Overhead Press","Lateral Raise","Front Raise","Face Pull","Arnold Press"],
+  Arms:["Bicep Curl","Hammer Curl","Tricep Pushdown","Skull Crusher","Dip"],
+  Core:["Plank","Crunch","Hanging Leg Raise","Russian Twist","Cable Woodchop"]
+};
+function burnKcal(minutes,intensity){ const m=Number(minutes)||0, met=MET[intensity]||5;
+  return Math.round(met*3.5*curKg()/200*m); }
+function stepKcal(steps){ return Math.round((Number(steps)||0)*curKg()*0.0005); }
+
+/* ---------------- nav ---------------- */
+function setTab(t){ tab=t;
+  ["today","weight","workouts","meals","water","data"].forEach(x=>document.getElementById("tab-"+x).classList.toggle("on",x===t));
+  render(); }
+function render(){
+  if(tab==="today")renderToday(); else if(tab==="weight")renderWeight();
+  else if(tab==="workouts")renderWorkouts(); else if(tab==="meals")renderMeals();
+  else if(tab==="water")renderWater(); else renderData();
+}
+let toastTimer;
+function toast(msg){ const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove("show"),2200); }
+
+/* ================= TODAY ================= */
+function renderToday(){
+  const tk=todayKey(), u=state.unit, cur=curWeight();
+  const steps=Number(state.steps[tk]||0);
+  const water=Number(state.water[tk]||0);
+  const woList=state.workouts[tk]||[];
+  const woKcal=woList.reduce((a,w)=>a+(Number(w.kcal)||0),0);
+  const drinkCal=(state.drinks[tk]||[]).reduce((a,d)=>a+(Number(d.calories)||0),0);
+  const mealCal=mealTotals(state.meals[tk]||[]).cal;
+  const eaten=Math.round(mealCal+drinkCal);
+  const burned=woKcal+stepKcal(steps);
+  const t=targetIntake(), main=tdee();
+
+  let html=`
+  <div class="card">
+    <div class="label">Current weight</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px;">
+      <span class="big mono">${cur}</span><span class="muted" style="font-size:16px">${u}</span>
+      ${state.startWeight>cur?`<span class="pill down" style="margin-left:auto">▼ ${(state.startWeight-cur).toFixed(1)} ${u}</span>`:''}
+    </div>
+  </div>`;
+
+  html += `<div class="card"><div class="label">Calorie goal</div>`;
+  if(t==null){
+    html += `<p class="muted" style="margin-top:8px">Add your height, age and sex on the <strong>Weight</strong> tab for a target dialed to your size — or set your own there.</p>
+      <button class="ghost" style="margin-top:8px" onclick="setTab('weight')">Set up target</button></div>`;
+  } else {
+    html += `<div class="grid2" style="margin-top:10px">
+      ${main!=null?`<div><div class="muted" style="font-size:12px">Maintenance</div><div class="mono stat">${main}</div></div>`:''}
+      <div><div class="muted" style="font-size:12px">${t.custom?'Your target':'Target intake'}</div><div class="mono stat" style="color:var(--effort)">${t.value}</div></div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:10px">${t.custom?'Manual target — change it on the Weight tab.':'~500 kcal/day under maintenance = about 1 lb/week.'+(t.clamped?` Floored at ${t.floor} kcal so it stays safe.`:'')} Estimate, not medical advice.</p></div>`;
+  }
+
+  html += `<div class="grid2">
+    <div class="card" style="margin:0">
+      <div class="label">Steps</div>
+      <div class="mono stat" style="margin-top:4px">${steps.toLocaleString()}</div>
+      <div class="muted" style="font-size:11px">goal ${state.stepGoal.toLocaleString()} · ~${stepKcal(steps)} kcal</div>
+      <div class="bar" style="margin-top:8px"><div style="width:${Math.min(100,steps/state.stepGoal*100)}%;background:var(--progress)"></div></div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <button class="ghost" style="flex:1;padding:9px" onclick="addSteps(1000)">+1k</button>
+        <button class="ghost" style="flex:1;padding:9px" onclick="addSteps(2500)">+2.5k</button>
+        <input id="stepIn" type="number" inputmode="numeric" placeholder="set" style="flex:1.3;padding:9px" onchange="setSteps(this.value)">
+      </div>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="label">Water</div>
+      <div class="mono stat" style="margin-top:4px">${water}<span style="font-size:13px;color:var(--muted)"> /${state.waterGoal} ml</span></div>
+      <div class="muted" style="font-size:11px">${Math.round(water/state.waterGoal*100)}% of goal</div>
+      <div class="bar" style="margin-top:8px"><div style="width:${Math.min(100,water/state.waterGoal*100)}%;background:#3D9BE5"></div></div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <button class="ghost" style="flex:1;padding:9px" onclick="addWater(250)">+250</button>
+        <button class="ghost" style="flex:1;padding:9px" onclick="addWater(500)">+500</button>
+        <button class="ghost" style="flex:1;padding:9px" onclick="setTab('water')">more</button>
+      </div>
+    </div>
+  </div>`;
+
+  html += `<div class="card"><div class="label">Today's energy</div>
+    <div class="grid2" style="margin-top:10px">
+      <div><div class="muted" style="font-size:12px">Eaten (food + drinks)</div><div class="mono stat" style="color:var(--effort)">${eaten}</div></div>
+      <div><div class="muted" style="font-size:12px">Burned (workouts + steps)</div><div class="mono stat" style="color:var(--progress)">${burned}</div></div>
+    </div>`;
+  if(t!=null){ const left=t.value-eaten, pct=Math.min(100,eaten/t.value*100);
+    html += `<div class="bar" style="margin-top:12px;height:10px"><div style="width:${pct}%;background:${eaten>t.value?'var(--effort)':'var(--progress)'}"></div></div>
+      <div class="muted" style="font-size:12px;margin-top:6px">${left>=0?left.toLocaleString()+" kcal left to hit your target":Math.abs(left).toLocaleString()+" kcal over target"}</div>`; }
+  html += `</div>`;
+
+  document.getElementById("main").innerHTML=html;
+}
+function addSteps(n){ const tk=todayKey(); state.steps[tk]=(Number(state.steps[tk]||0))+n; save(); render(); }
+function setSteps(v){ const tk=todayKey(); state.steps[tk]=Math.max(0,Number(v)||0); save(); render(); }
+
+/* ================= WEIGHT ================= */
+function renderWeight(){
+  const w=state.weights.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const current=w.length?w[w.length-1].val:state.startWeight, u=state.unit;
+  const lost=state.startWeight-current, toGoal=state.goalWeight!=null?(current-state.goalWeight):null;
+  const imperial=(u==="lb");
+  const ft=state.heightCm?Math.floor(state.heightCm/30.48):"";
+  const inch=state.heightCm?Math.round((state.heightCm/2.54)-(Math.floor(state.heightCm/30.48)*12)):"";
+
+  let html=`
+  <div class="card"><div class="label">Current weight</div>
+    <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;">
+      <span class="big mono">${current}</span><span class="muted" style="font-size:16px">${u}</span></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      ${lost>0?`<span class="pill down">▼ ${lost.toFixed(1)} ${u} from ${state.startWeight}</span>`:''}
+      ${toGoal!=null?`<span class="pill" style="background:var(--soft);color:var(--muted)">${toGoal>0?toGoal.toFixed(1)+" "+u+" to goal":"goal reached 🎯"}</span>`:''}
+    </div></div>
+  <div class="card"><div class="label">Trend</div>${weightGraph(w)}</div>
+  <div class="card"><div class="label">Log a weigh-in</div>
+    <div class="row" style="margin-top:10px;">
+      <input id="wVal" type="number" inputmode="decimal" placeholder="weight in ${u}" style="flex:1.2">
+      <input id="wDate" type="date" value="${todayKey()}" style="flex:1.4"></div>
+    <button class="primary" style="width:100%;margin-top:10px;" onclick="logWeight()">Save weigh-in</button>
+  </div>`;
+
+  // body + goal
+  html += `<h3 class="sec">Body & goal</h3><div class="card">
+    <div class="row">
+      <div style="flex:1"><div class="label">Start</div>
+        <input type="number" inputmode="decimal" value="${state.startWeight}" onchange="setStart(this.value)" style="margin-top:6px"></div>
+      <div style="flex:1"><div class="label">Goal</div>
+        <input type="number" inputmode="decimal" value="${state.goalWeight??''}" placeholder="opt" onchange="setGoal(this.value)" style="margin-top:6px"></div>
+      <div style="width:74px"><div class="label">Unit</div>
+        <select onchange="setUnit(this.value)" style="margin-top:6px">
+          <option value="lb" ${u==='lb'?'selected':''}>lb</option><option value="kg" ${u==='kg'?'selected':''}>kg</option></select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1.4"><div class="label">Height</div>
+        ${imperial
+          ? `<div class="row" style="margin-top:6px"><input id="hFt" type="number" inputmode="numeric" placeholder="ft" value="${ft}" onchange="setHeightImp()"><input id="hIn" type="number" inputmode="numeric" placeholder="in" value="${inch}" onchange="setHeightImp()"></div>`
+          : `<input id="hCm" type="number" inputmode="numeric" placeholder="cm" value="${state.heightCm??''}" onchange="setHeightCm(this.value)" style="margin-top:6px">`}
+      </div>
+      <div style="width:84px"><div class="label">Age</div>
+        <input type="number" inputmode="numeric" value="${state.age??''}" placeholder="yrs" onchange="setAge(this.value)" style="margin-top:6px"></div>
+      <div style="width:96px"><div class="label">Sex</div>
+        <select onchange="setSex(this.value)" style="margin-top:6px">
+          <option value="male" ${state.sex==='male'?'selected':''}>Male</option>
+          <option value="female" ${state.sex==='female'?'selected':''}>Female</option></select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1"><div class="label">Body fat % <span style="text-transform:none;font-weight:400">(opt)</span></div>
+        <input type="number" inputmode="decimal" value="${state.bodyFat??''}" placeholder="e.g. 25" onchange="setBodyFat(this.value)" style="margin-top:6px"></div>
+      <div style="flex:1.6"><div class="label">Daily activity</div>
+        <select onchange="setActivity(this.value)" style="margin-top:6px">
+          <option value="1.2" ${state.activity==1.2?'selected':''}>Sedentary — mostly sitting</option>
+          <option value="1.375" ${state.activity==1.375?'selected':''}>Lightly active — on feet some</option>
+          <option value="1.55" ${state.activity==1.55?'selected':''}>Active — moving most of day</option>
+          <option value="1.725" ${state.activity==1.725?'selected':''}>Very active — physical job</option>
+        </select></div>
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:6px">Set activity for your <strong>everyday</strong> movement, not the workouts you log here — those are tracked separately so they aren't counted twice. Adding body fat % switches to a formula that's usually more accurate if you're carrying size.</p>`;
+
+  const main=tdee(), calc=calcTarget();
+  if(main!=null){
+    const floored=(main-500)<calorieFloor();
+    html += `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+      <div class="grid2">
+        <div><div class="muted" style="font-size:12px">Maintenance</div><div class="mono stat">${main}<span style="font-size:12px;color:var(--muted)"> kcal</span></div></div>
+        <div><div class="muted" style="font-size:12px">Suggested · −1 lb/wk</div><div class="mono stat" style="color:var(--effort)">${calc}<span style="font-size:12px;color:var(--muted)"> kcal</span></div></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:10px">${bmrFormula()} × activity, minus ~500 kcal/day.${floored?` Floored at ${calorieFloor()} kcal for safety.`:''} Estimate — trust the scale: if weight isn't moving after ~2 weeks, nudge down. Not medical advice.</p>
+    </div>`;
+  } else {
+    html += `<p class="muted" style="margin-top:12px">Add height + age (or a body fat %) for a calculated suggestion — or just set your own target below.</p>`;
+  }
+  html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+    <div class="label">Your daily calorie target</div>
+    <div class="row" style="margin-top:6px">
+      <input type="number" inputmode="numeric" value="${state.customTarget??''}" placeholder="${calc!=null?calc:'e.g. 2000'}" onchange="setCustomTarget(this.value)" style="flex:1">
+      ${state.customTarget?`<button class="ghost" onclick="setCustomTarget('')">Use calculated</button>`:''}
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:6px">${state.customTarget?'Using your manual target across the app.':(calc!=null?'Blank = use the calculated suggestion. Enter a number to override it.':'Enter a number to set a target the app tracks against.')}</p>
+  </div>`;
+  html += `</div>`;
+
+  if(w.length){
+    html+=`<h3 class="sec">History</h3><div class="card">`;
+    w.slice().reverse().forEach(e=>{ html+=`<div class="item"><span>${pretty(e.date)}</span>
+      <span style="display:flex;align-items:center;gap:10px;"><span class="mono stat" style="font-size:16px">${e.val} ${u}</span>
+      <button class="del" onclick="delWeight('${e.id}')">✕</button></span></div>`; });
+    html+=`</div>`;
+  }
+  document.getElementById("main").innerHTML=html;
+}
+function weightGraph(w){
+  if(!w.length) return `<div class="muted" style="margin-top:8px">Log a weigh-in to start your graph.</div>`;
+  const W=340,H=180,P=30;
+  let min=Math.min(...w.map(p=>p.val)),max=Math.max(...w.map(p=>p.val));
+  if(state.goalWeight!=null){ min=Math.min(min,state.goalWeight); max=Math.max(max,state.goalWeight); }
+  if(min===max){ min-=2; max+=2; }
+  const m=(max-min)*0.12; min-=m; max+=m;
+  const ts=w.map(p=>fromKey(p.date).getTime()),t0=Math.min(...ts),t1=Math.max(...ts);
+  const X=t=>t1===t0?W/2:P+(t-t0)/(t1-t0)*(W-2*P), Y=v=>H-P-(v-min)/(max-min)*(H-2*P);
+  const pts=w.map(p=>[X(fromKey(p.date).getTime()),Y(p.val)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=line+` L${pts[pts.length-1][0].toFixed(1)} ${H-P} L${pts[0][0].toFixed(1)} ${H-P} Z`;
+  const dots=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="var(--effort)"/>`).join("");
+  let goal="";
+  if(state.goalWeight!=null){ const gy=Y(state.goalWeight);
+    goal=`<line x1="${P}" y1="${gy}" x2="${W-P}" y2="${gy}" stroke="var(--progress)" stroke-width="1.4" stroke-dasharray="4 4"/>
+      <text x="${W-P}" y="${gy-5}" font-size="9" fill="var(--progress)" text-anchor="end">goal ${state.goalWeight}</text>`; }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="margin-top:8px;display:block">
+    <text x="${P-6}" y="${Y(max-(max-min)*0.12)+4}" font-size="9" fill="var(--muted)" text-anchor="end">${Math.round(max-(max-min)*0.12)}</text>
+    <text x="${P-6}" y="${Y(min+(max-min)*0.12)+4}" font-size="9" fill="var(--muted)" text-anchor="end">${Math.round(min+(max-min)*0.12)}</text>
+    <path d="${area}" fill="var(--effort)" opacity="0.08"/>${goal}
+    <path d="${line}" fill="none" stroke="var(--effort)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>${dots}
+    <text x="${pts[0][0]}" y="${H-P+15}" font-size="9" fill="var(--muted)" text-anchor="middle">${w[0].date.slice(5)}</text>
+    <text x="${pts[pts.length-1][0]}" y="${H-P+15}" font-size="9" fill="var(--muted)" text-anchor="middle">${w[w.length-1].date.slice(5)}</text>
+  </svg>`;
+}
+function logWeight(){ const v=parseFloat(document.getElementById("wVal").value),d=document.getElementById("wDate").value||todayKey();
+  if(isNaN(v)){ toast("Enter a weight first"); return; }
+  state.weights=state.weights.filter(e=>e.date!==d); state.weights.push({id:uid(),date:d,val:v}); save(); toast("Weigh-in saved"); render(); }
+function delWeight(id){ state.weights=state.weights.filter(e=>e.id!==id); save(); render(); }
+function setStart(v){ state.startWeight=parseFloat(v)||0; save(); render(); }
+function setGoal(v){ state.goalWeight=v===""?null:parseFloat(v); save(); render(); }
+function setUnit(v){ state.unit=v; save(); render(); }
+function setHeightCm(v){ state.heightCm=v===""?null:Math.round(parseFloat(v)); save(); render(); }
+function setHeightImp(){ const ft=parseFloat(document.getElementById("hFt").value)||0, inch=parseFloat(document.getElementById("hIn").value)||0;
+  const cm=Math.round((ft*12+inch)*2.54); state.heightCm=cm>0?cm:null; save(); render(); }
+function setAge(v){ state.age=v===""?null:parseInt(v); save(); render(); }
+function setSex(v){ state.sex=v; save(); render(); }
+function setActivity(v){ state.activity=parseFloat(v); save(); render(); }
+function setBodyFat(v){ state.bodyFat=v===""?null:Math.max(0,Math.min(75,parseFloat(v))); save(); render(); }
+function setCustomTarget(v){ const n=parseFloat(v); state.customTarget=(v===""||isNaN(n)||n<=0)?null:Math.round(n); save(); render(); }
+
+/* ================= WORKOUTS ================= */
+function renderWorkouts(){
+  const list=state.workouts[woDate]||[], week=weekDates(woDate);
+  const weekCount=week.reduce((a,k)=>a+((state.workouts[k]||[]).length),0);
+  const weekKcal=week.reduce((a,k)=>a+((state.workouts[k]||[]).reduce((s,w)=>s+(Number(w.kcal)||0),0)),0);
+
+  let html=`
+  <div class="datebar"><button onclick="shiftWO(-1)">‹</button><strong>${pretty(woDate)}</strong>
+    <button onclick="shiftWO(1)" ${woDate===todayKey()?'style="opacity:.3" disabled':''}>›</button></div>
+  <div class="row" style="margin-bottom:12px">
+    <div class="card" style="flex:1;margin:0"><div class="label">Workouts / week</div><div class="mono stat" style="margin-top:4px">${weekCount}</div></div>
+    <div class="card" style="flex:1;margin:0"><div class="label">Burned / week</div><div class="mono stat" style="margin-top:4px;color:var(--progress)">${weekKcal}</div></div>
+  </div>
+  <div class="card"><div class="label">Log a workout</div>
+    <input id="woTitle" placeholder="e.g. Push day, Run, Legs" value="${esc(draftWO.title)}" oninput="draftWO.title=this.value" style="margin-top:10px">
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1"><input id="woMin" type="number" inputmode="numeric" placeholder="minutes" value="${esc(draftWO.minutes)}" oninput="draftWO.minutes=this.value;updBurn()"></div>
+      <div style="flex:1.2"><select id="woInt" onchange="draftWO.intensity=this.value;updBurn()">
+        ${Object.keys(MET).map(k=>`<option value="${k}" ${draftWO.intensity===k?'selected':''}>${MET_LABEL[k]} (${MET[k]} MET)</option>`).join("")}
+      </select></div>
+    </div>
+    <div class="card" style="background:var(--soft);margin-top:10px;display:flex;justify-content:space-between;align-items:center;padding:12px 14px">
+      <span class="label">Est. calories burned</span>
+      <span class="mono stat" id="burnPrev" style="color:var(--progress)">${burnKcal(draftWO.minutes,draftWO.intensity)}</span>
+    </div>`;
+
+  if(draftWO.exercises.length){ html+=`<div style="margin-top:10px">`;
+    draftWO.exercises.forEach((ex,i)=>{ html+=`<div class="exline"><span>${esc(ex.name)} <span class="muted">${fmtEx(ex)}</span></span>
+      <button class="del" onclick="rmDraftEx(${i})">✕</button></div>`; }); html+=`</div>`; }
+
+  html+=`<div style="margin-top:12px"><div class="label">Add from library</div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
+        ${Object.keys(EXERCISES).map(g=>`<button class="ghost" style="flex:0 0 auto;padding:7px 12px;font-size:13px" onclick="toggleLib('${g}')">${g}</button>`).join("")}
+      </div>
+      ${Object.keys(EXERCISES).map(g=>`<div id="lib-${g}" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px">
+        ${EXERCISES[g].map(ex=>`<button class="ghost" style="flex:0 0 auto;padding:7px 11px;font-size:13px;border-style:dashed" onclick="pickExercise('${ex}')">+ ${ex}</button>`).join("")}
+      </div>`).join("")}
+    </div>
+    <div class="row" style="margin-top:10px;gap:6px">
+      <input id="exName" placeholder="exercise" style="flex:1.6">
+      <input id="exSets" type="number" inputmode="numeric" placeholder="sets" style="flex:1">
+      <input id="exReps" type="number" inputmode="numeric" placeholder="reps" style="flex:1">
+      <input id="exWt" type="number" inputmode="decimal" placeholder="wt" style="flex:1"></div>
+    <button class="ghost" style="width:100%;margin-top:8px" onclick="addDraftEx()">+ Add exercise</button>
+    <input id="woNote" placeholder="note (optional)" value="${esc(draftWO.note)}" oninput="draftWO.note=this.value" style="margin-top:8px">
+    <button class="primary" style="width:100%;margin-top:10px" onclick="saveWO()">Save workout</button></div>`;
+
+  html+=`<h3 class="sec">Logged</h3>`;
+  if(!list.length) html+=`<div class="muted">No workouts logged for this day.</div>`;
+  else list.forEach(w=>{ html+=`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><span style="font-weight:700;font-size:15px">${esc(w.title)}</span>
+          ${w.minutes?` <span class="tag">${w.minutes} min</span>`:''}
+          ${w.kcal?` <span class="tag" style="color:var(--effort);background:#FDE9E4">${w.kcal} kcal</span>`:''}</div>
+        <button class="del" onclick="delWO('${w.id}')">✕</button></div>`;
+    (w.exercises||[]).forEach(ex=>{ html+=`<div class="exline"><span>${esc(ex.name)}</span><span class="mono muted">${fmtEx(ex)}</span></div>`; });
+    if(w.note) html+=`<div class="muted" style="margin-top:6px">${esc(w.note)}</div>`; html+=`</div>`; });
+
+  document.getElementById("main").innerHTML=html;
+}
+function updBurn(){ const el=document.getElementById("burnPrev"); if(el) el.textContent=burnKcal(draftWO.minutes,draftWO.intensity); }
+function toggleLib(g){ Object.keys(EXERCISES).forEach(k=>{ const el=document.getElementById('lib-'+k); if(el) el.style.display=(k===g && el.style.display!=='flex')?'flex':'none'; }); }
+function pickExercise(n){ const nm=document.getElementById('exName'); if(nm) nm.value=n; const s=document.getElementById('exSets'); if(s) s.focus(); toast(n+' — set sets/reps, then Add'); }
+function fmtEx(ex){ const sr=(ex.sets&&ex.reps)?`${ex.sets}×${ex.reps}`:(ex.sets?`${ex.sets} sets`:(ex.reps?`${ex.reps} reps`:""));
+  const wt=ex.weight?` @ ${ex.weight}${state.unit}`:""; return (sr+wt).trim(); }
+function shiftWO(n){ const d=fromKey(woDate); d.setDate(d.getDate()+n); woDate=keyOf(d); render(); }
+function addDraftEx(){ const name=document.getElementById("exName").value.trim(); if(!name){ toast("Name the exercise"); return; }
+  draftWO.exercises.push({name,sets:document.getElementById("exSets").value,reps:document.getElementById("exReps").value,weight:document.getElementById("exWt").value}); render(); }
+function rmDraftEx(i){ draftWO.exercises.splice(i,1); render(); }
+function saveWO(){ const t=(draftWO.title||"").trim();
+  if(!t && !draftWO.exercises.length){ toast("Add a title or an exercise"); return; }
+  if(!state.workouts[woDate]) state.workouts[woDate]=[];
+  state.workouts[woDate].push({ id:uid(), title:t||"Workout", minutes:draftWO.minutes, intensity:draftWO.intensity,
+    kcal:burnKcal(draftWO.minutes,draftWO.intensity), exercises:draftWO.exercises, note:draftWO.note, time:Date.now() });
+  draftWO={ title:"", minutes:"", intensity:"moderate", note:"", exercises:[] }; save(); toast("Workout saved"); render(); }
+function delWO(id){ state.workouts[woDate]=(state.workouts[woDate]||[]).filter(w=>w.id!==id); save(); render(); }
+
+/* ================= MEALS ================= */
+function mealTotals(list){ return (list||[]).reduce((a,m)=>({
+  cal:a.cal+(Number(m.calories)||0), protein:a.protein+(Number(m.protein)||0),
+  carbs:a.carbs+(Number(m.carbs)||0), fat:a.fat+(Number(m.fat)||0) }),{cal:0,protein:0,carbs:0,fat:0}); }
+const MEAL_TYPES=["Breakfast","Lunch","Dinner","Snack"];
+function renderMeals(){
+  const list=state.meals[mealDate]||[];
+  const t=mealTotals(list);
+  const drinkCal=(state.drinks[mealDate]||[]).reduce((a,d)=>a+(Number(d.calories)||0),0);
+  const eaten=Math.round(t.cal+drinkCal);
+  const tgt=targetIntake();
+
+  let html=`
+  <div class="datebar"><button onclick="shiftMeal(-1)">‹</button><strong>${pretty(mealDate)}</strong>
+    <button onclick="shiftMeal(1)" ${mealDate===todayKey()?'style="opacity:.3" disabled':''}>›</button></div>
+
+  <div class="card"><div class="label">Calories eaten</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
+      <span class="big mono" style="font-size:38px">${eaten}</span>
+      ${tgt?`<span class="muted">/ ${tgt.value} target</span>`:`<span class="muted">kcal — set body stats on Weight tab for a target</span>`}
+    </div>`;
+  if(tgt){ const pct=Math.min(100,eaten/tgt.value*100), left=tgt.value-eaten;
+    html+=`<div class="bar" style="margin-top:10px;height:12px"><div style="width:${pct}%;background:${eaten>tgt.value?'var(--effort)':'var(--progress)'}"></div></div>
+      <div class="muted" style="font-size:12px;margin-top:6px">${left>=0?left.toLocaleString()+" kcal left today":Math.abs(left).toLocaleString()+" kcal over target"}${drinkCal?` · ${Math.round(drinkCal)} from drinks`:''}</div>`; }
+  html+=`</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+    <div class="card" style="margin:0;text-align:center"><div class="label">Protein</div><div class="mono stat" style="color:var(--progress)">${Math.round(t.protein)}g</div></div>
+    <div class="card" style="margin:0;text-align:center"><div class="label">Carbs</div><div class="mono stat">${Math.round(t.carbs)}g</div></div>
+    <div class="card" style="margin:0;text-align:center"><div class="label">Fat</div><div class="mono stat">${Math.round(t.fat)}g</div></div>
+  </div>
+
+  <div class="card"><div class="label">Add food</div>
+    <select id="mType" style="margin-top:10px">${MEAL_TYPES.map(x=>`<option value="${x}">${x}</option>`).join("")}</select>
+    <input id="mName" placeholder="What did you eat?" style="margin-top:8px">
+    <div class="row" style="margin-top:8px;gap:6px">
+      <input id="mCal" type="number" inputmode="numeric" placeholder="kcal" style="flex:1.2">
+      <input id="mPro" type="number" inputmode="numeric" placeholder="protein" style="flex:1">
+      <input id="mCarb" type="number" inputmode="numeric" placeholder="carbs" style="flex:1">
+      <input id="mFat" type="number" inputmode="numeric" placeholder="fat" style="flex:1">
+    </div>
+    <button class="primary" style="width:100%;margin-top:10px" onclick="addMeal()">Add food</button>
+  </div>
+
+  <h3 class="sec">Logged</h3>`;
+
+  if(!list.length) html+=`<div class="muted">Nothing logged for this day yet.</div>`;
+  else MEAL_TYPES.forEach(tp=>{
+    const items=list.filter(m=>m.type===tp); if(!items.length) return;
+    const sub=items.reduce((a,m)=>a+(Number(m.calories)||0),0);
+    html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="label">${tp}</span><span class="mono" style="font-size:12px;color:var(--muted)">${Math.round(sub)} kcal</span></div>`;
+    items.forEach(m=>{ const meta=[m.protein?`${Math.round(m.protein)}p`:null,m.carbs?`${Math.round(m.carbs)}c`:null,m.fat?`${Math.round(m.fat)}f`:null].filter(Boolean).join(" · ");
+      html+=`<div class="item"><span>${esc(m.name)}${meta?`<br><span class="mono" style="font-size:11px;color:var(--muted)">${meta}</span>`:''}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:13px">${m.calories?Math.round(m.calories):0}</span>
+        <button class="del" onclick="delMeal('${m.id}')">✕</button></span></div>`; });
+    html+=`</div>`;
+  });
+  document.getElementById("main").innerHTML=html;
+}
+function shiftMeal(n){ const d=fromKey(mealDate); d.setDate(d.getDate()+n); mealDate=keyOf(d); render(); }
+function addMeal(){ const name=document.getElementById("mName").value.trim(); if(!name){ toast("Name the food"); return; }
+  if(!state.meals[mealDate]) state.meals[mealDate]=[];
+  state.meals[mealDate].push({ id:uid(), type:document.getElementById("mType").value, name,
+    calories:document.getElementById("mCal").value, protein:document.getElementById("mPro").value,
+    carbs:document.getElementById("mCarb").value, fat:document.getElementById("mFat").value, time:Date.now() });
+  save(); toast("Food added"); render(); }
+function delMeal(id){ state.meals[mealDate]=(state.meals[mealDate]||[]).filter(m=>m.id!==id); save(); render(); }
+
+/* ================= WATER + DRINKS ================= */
+function renderWater(){
+  const list=state.drinks[drinkDate]||[];
+  const cal=list.reduce((a,d)=>a+(Number(d.calories)||0),0);
+  const water=Number(state.water[drinkDate]||0);
+  const pct=Math.min(100,water/state.waterGoal*100);
+  let html=`
+  <div class="datebar"><button onclick="shiftDrink(-1)">‹</button><strong>${pretty(drinkDate)}</strong>
+    <button onclick="shiftDrink(1)" ${drinkDate===todayKey()?'style="opacity:.3" disabled':''}>›</button></div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span class="label">Water</span>
+      <span class="mono" style="font-size:13px;color:var(--muted)">${Math.round(pct)}%</span>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+      <span class="big mono" style="font-size:38px">${water}</span><span class="muted">/ ${state.waterGoal} ml</span>
+    </div>
+    <div class="bar" style="margin-top:10px;height:14px"><div style="width:${pct}%;background:#3D9BE5"></div></div>
+    <div class="row" style="margin-top:12px;gap:6px">
+      <button class="ghost" style="flex:1" onclick="addWater(250)">+250</button>
+      <button class="ghost" style="flex:1" onclick="addWater(500)">+500</button>
+      <button class="ghost" style="flex:1" onclick="addWater(-250)">−250</button>
+      <input id="wGoal" type="number" inputmode="numeric" value="${state.waterGoal}" onchange="setWaterGoal(this.value)" style="flex:1.3" title="daily goal ml">
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="label">Other drinks</span>
+      <span class="mono" style="font-size:13px;color:var(--effort)">${Math.round(cal)} kcal today</span>
+    </div>
+    <input id="dName" placeholder="Drink name (coffee, soda, beer…)" style="margin-top:10px">
+    <div class="row" style="margin-top:8px">
+      <input id="dCal" type="number" inputmode="numeric" placeholder="calories (opt)" style="flex:1">
+      <input id="dMl" type="number" inputmode="numeric" placeholder="ml (opt)" style="flex:1"></div>
+    <button class="primary" style="width:100%;margin-top:10px" onclick="addDrink()">Add drink</button>
+  </div>
+
+  <h3 class="sec">Logged drinks</h3>`;
+  if(!list.length) html+=`<div class="muted">No drinks logged for this day.</div>`;
+  else{ html+=`<div class="card">`;
+    list.forEach(d=>{ const meta=[d.calories?Math.round(d.calories)+" kcal":null,d.ml?Math.round(d.ml)+" ml":null].filter(Boolean).join(" · ");
+      html+=`<div class="item"><span>${esc(d.name)}${meta?`<br><span class="mono" style="font-size:11px;color:var(--muted)">${meta}</span>`:''}</span>
+        <button class="del" onclick="delDrink('${d.id}')">✕</button></div>`; });
+    html+=`</div>`; }
+  document.getElementById("main").innerHTML=html;
+}
+function shiftDrink(n){ const d=fromKey(drinkDate); d.setDate(d.getDate()+n); drinkDate=keyOf(d); render(); }
+function addWater(n){ const k=drinkDate; state.water[k]=Math.max(0,(Number(state.water[k]||0))+n); save(); render(); }
+function setWaterGoal(v){ state.waterGoal=Math.max(0,Number(v)||0); save(); render(); }
+function addDrink(){ const name=document.getElementById("dName").value.trim(); if(!name){ toast("Give the drink a name"); return; }
+  if(!state.drinks[drinkDate]) state.drinks[drinkDate]=[];
+  state.drinks[drinkDate].push({id:uid(),name,calories:document.getElementById("dCal").value,ml:document.getElementById("dMl").value,time:Date.now()});
+  save(); toast("Drink added"); render(); }
+function delDrink(id){ state.drinks[drinkDate]=(state.drinks[drinkDate]||[]).filter(d=>d.id!==id); save(); render(); }
+
+/* ================= DATA ================= */
+function renderData(){
+  document.getElementById("main").innerHTML=`
+  <div class="card"><div class="label">Put it on your phone</div>
+    <p class="muted" style="margin-top:8px">1. Get this file onto your phone (Drive, email, USB).<br>
+      2. Open it in <strong>Chrome</strong>.<br>3. Tap <strong>⋮ → Add to Home screen</strong>.<br>
+      4. Launches full screen, runs offline, data stays on the phone.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px">A real installable APK means wrapping this in an Android shell (Capacitor / PWABuilder). The home-screen install is the no-build route.</p>
+  </div>
+  <div class="card"><div class="label">Back up your data</div>
+    <p class="muted" style="margin-top:8px">Your log lives only on this device. Export before switching phones or clearing your browser.</p>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" style="flex:1" onclick="exportData()">⬇ Export</button>
+      <button class="ghost" style="flex:1" onclick="document.getElementById('importIn').click()">⬆ Import</button></div>
+    <input id="importIn" type="file" accept="application/json,.json" style="display:none" onchange="importData(event)">
+  </div>
+  <div class="card"><div class="label">Reset</div>
+    <p class="muted" style="margin-top:8px">Wipe everything and start fresh. Can't be undone.</p>
+    <button class="ghost" style="margin-top:10px;color:var(--effort);border-color:var(--effort)" onclick="resetAll()">Erase all data</button>
+  </div>`;
+}
+function exportData(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="drive-backup-"+todayKey()+".json"; a.click(); URL.revokeObjectURL(a.href); toast("Backup downloaded"); }
+function importData(ev){ const file=ev.target.files[0]; if(!file) return; const fr=new FileReader();
+  fr.onload=()=>{ try{ const d=JSON.parse(fr.result);
+    if(d&&d.weights){ d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; if(d.waterGoal==null)d.waterGoal=2500; if(d.stepGoal==null)d.stepGoal=8000; state=d; save(); toast("Backup loaded"); render(); }
+    else toast("That doesn't look like a DRIVE backup"); }catch(e){ toast("Couldn't read that file"); } };
+  fr.readAsText(file); }
+function resetAll(){ if(confirm("Erase all data? This can't be undone.")){ localStorage.removeItem(KEY); state=load(); save(); toast("Reset done"); render(); } }
+
+/* ---------------- boot ---------------- */
+render();
+if('serviceWorker' in navigator){ window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); }); }
+
+</script>
+</body>
+</html>
