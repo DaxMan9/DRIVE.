@@ -82,12 +82,12 @@ let draftWO={ title:"", minutes:"", intensity:"moderate", note:"", exercises:[] 
 
 function load(){
   try{ const raw=localStorage.getItem(KEY); if(raw){ const d=JSON.parse(raw);
-    d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[];
+    d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[]; d.savedWorkouts=d.savedWorkouts||[];
     if(d.waterGoal==null) d.waterGoal=2500; if(d.stepGoal==null) d.stepGoal=8000;
     return d; } }catch(e){}
   return { unit:"lb", heightCm:null, sex:"male", age:null, activity:1.2, bodyFat:null, customTarget:null, proteinGoal:null,
     startWeight:0, goalWeight:null, weights:[],
-    workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, savedFoods:[], waterGoal:2500, stepGoal:8000 };
+    workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, savedFoods:[], savedWorkouts:[], waterGoal:2500, stepGoal:8000 };
 }
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ toast("Couldn't save"); } }
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -385,6 +385,14 @@ function renderWorkouts(){
     <div class="card" style="flex:1;margin:0"><div class="label">Workouts / week</div><div class="mono stat" style="margin-top:4px">${weekCount}</div></div>
     <div class="card" style="flex:1;margin:0"><div class="label">Burned / week</div><div class="mono stat" style="margin-top:4px;color:var(--progress)">${weekKcal}</div></div>
   </div>
+  ${(state.savedWorkouts&&state.savedWorkouts.length)?`<div class="card"><div class="label">My workouts — tap to load</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+      ${state.savedWorkouts.map(w=>`<span style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:20px;background:var(--soft);overflow:hidden">
+        <button style="background:none;border:none;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;padding:7px 3px 7px 12px" onclick="loadWorkoutTemplate('${w.id}')">${esc(w.title)}${w.exercises&&w.exercises.length?` · ${w.exercises.length}`:''}</button>
+        <button class="del" style="padding:7px 9px 7px 3px;font-size:12px" onclick="removeWorkoutTemplate('${w.id}')">✕</button></span>`).join("")}
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:8px">Loads into the builder below — tweak weights, then Save workout.</p>
+  </div>`:''}
   <div class="card"><div class="label">Log a workout</div>
     <input id="woTitle" placeholder="e.g. Push day, Run, Legs" value="${esc(draftWO.title)}" oninput="draftWO.title=this.value" style="margin-top:10px">
     <div class="row" style="margin-top:8px">
@@ -417,7 +425,10 @@ function renderWorkouts(){
       <input id="exWt" type="number" inputmode="decimal" placeholder="wt" style="flex:1"></div>
     <button class="ghost" style="width:100%;margin-top:8px" onclick="addDraftEx()">+ Add exercise</button>
     <input id="woNote" placeholder="note (optional)" value="${esc(draftWO.note)}" oninput="draftWO.note=this.value" style="margin-top:8px">
-    <button class="primary" style="width:100%;margin-top:10px" onclick="saveWO()">Save workout</button></div>`;
+    <div class="row" style="margin-top:10px;gap:8px">
+      <button class="primary" style="flex:2" onclick="saveWO()">Save workout</button>
+      <button class="ghost" style="flex:1" onclick="saveWorkoutTemplate()">★ Template</button>
+    </div></div>`;
 
   html+=`<h3 class="sec">Logged</h3>`;
   if(!list.length) html+=`<div class="muted">No workouts logged for this day.</div>`;
@@ -448,6 +459,17 @@ function saveWO(){ const t=(draftWO.title||"").trim();
     kcal:burnKcal(draftWO.minutes,draftWO.intensity), exercises:draftWO.exercises, note:draftWO.note, time:Date.now() });
   draftWO={ title:"", minutes:"", intensity:"moderate", note:"", exercises:[] }; save(); toast("Workout saved"); render(); }
 function delWO(id){ state.workouts[woDate]=(state.workouts[woDate]||[]).filter(w=>w.id!==id); save(); render(); }
+function saveWorkoutTemplate(){ const title=(draftWO.title||"").trim();
+  if(!title && !draftWO.exercises.length){ toast("Add a title or exercises first"); return; }
+  if(!state.savedWorkouts) state.savedWorkouts=[];
+  state.savedWorkouts.push({ id:uid(), title:title||"Workout", minutes:draftWO.minutes, intensity:draftWO.intensity, note:draftWO.note,
+    exercises:draftWO.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})) });
+  save(); toast('Saved "'+(title||"Workout")+'" template'); render(); }
+function loadWorkoutTemplate(id){ const w=(state.savedWorkouts||[]).find(x=>x.id===id); if(!w) return;
+  draftWO={ title:w.title, minutes:w.minutes||"", intensity:w.intensity||"moderate", note:w.note||"",
+    exercises:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})) };
+  toast('Loaded "'+w.title+'"'); render(); }
+function removeWorkoutTemplate(id){ state.savedWorkouts=(state.savedWorkouts||[]).filter(w=>w.id!==id); save(); toast("Template removed"); render(); }
 
 /* ================= MEALS ================= */
 function mealTotals(list){ return (list||[]).reduce((a,m)=>({
@@ -627,7 +649,7 @@ function exportData(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="drive-backup-"+todayKey()+".json"; a.click(); URL.revokeObjectURL(a.href); toast("Backup downloaded"); }
 function importData(ev){ const file=ev.target.files[0]; if(!file) return; const fr=new FileReader();
   fr.onload=()=>{ try{ const d=JSON.parse(fr.result);
-    if(d&&d.weights){ d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[]; if(d.waterGoal==null)d.waterGoal=2500; if(d.stepGoal==null)d.stepGoal=8000; state=d; save(); toast("Backup loaded"); render(); }
+    if(d&&d.weights){ d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[]; d.savedWorkouts=d.savedWorkouts||[]; if(d.waterGoal==null)d.waterGoal=2500; if(d.stepGoal==null)d.stepGoal=8000; state=d; save(); toast("Backup loaded"); render(); }
     else toast("That doesn't look like a DRIVE backup"); }catch(e){ toast("Couldn't read that file"); } };
   fr.readAsText(file); }
 function resetAll(){ if(confirm("Erase all data? This can't be undone.")){ localStorage.removeItem(KEY); state=load(); save(); toast("Reset done"); render(); } }
