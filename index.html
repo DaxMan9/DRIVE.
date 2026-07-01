@@ -82,12 +82,12 @@ let draftWO={ title:"", minutes:"", intensity:"moderate", note:"", exercises:[] 
 
 function load(){
   try{ const raw=localStorage.getItem(KEY); if(raw){ const d=JSON.parse(raw);
-    d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{};
+    d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[];
     if(d.waterGoal==null) d.waterGoal=2500; if(d.stepGoal==null) d.stepGoal=8000;
     return d; } }catch(e){}
   return { unit:"lb", heightCm:null, sex:"male", age:null, activity:1.2, bodyFat:null, customTarget:null, proteinGoal:null,
     startWeight:0, goalWeight:null, weights:[],
-    workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, waterGoal:2500, stepGoal:8000 };
+    workouts:{}, drinks:{}, steps:{}, water:{}, meals:{}, savedFoods:[], waterGoal:2500, stepGoal:8000 };
 }
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ toast("Couldn't save"); } }
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -486,6 +486,15 @@ function renderMeals(){
     <input type="number" inputmode="numeric" value="${state.proteinGoal??''}" placeholder="set g" onchange="setProteinGoal(this.value)" style="width:110px">
   </div>
 
+  ${(state.savedFoods&&state.savedFoods.length)?`<div class="card"><div class="label">My foods — tap to add</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+      ${state.savedFoods.map(f=>`<span style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:20px;background:var(--soft);overflow:hidden">
+        <button style="background:none;border:none;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;padding:7px 3px 7px 12px" onclick="logSaved('${f.id}')">${esc(f.name)}${f.calories?` · ${Math.round(f.calories)}`:''}</button>
+        <button class="del" style="padding:7px 9px 7px 3px;font-size:12px" onclick="removeSaved('${f.id}')">✕</button></span>`).join("")}
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:8px">Logs under the meal type picked below.</p>
+  </div>`:''}
+
   <div class="card"><div class="label">Add food</div>
     <select id="mType" style="margin-top:10px">${MEAL_TYPES.map(x=>`<option value="${x}">${x}</option>`).join("")}</select>
     <input id="mName" placeholder="What did you eat?" style="margin-top:8px">
@@ -495,7 +504,10 @@ function renderMeals(){
       <input id="mCarb" type="number" inputmode="numeric" placeholder="carbs" style="flex:1">
       <input id="mFat" type="number" inputmode="numeric" placeholder="fat" style="flex:1">
     </div>
-    <button class="primary" style="width:100%;margin-top:10px" onclick="addMeal()">Add food</button>
+    <div class="row" style="margin-top:10px;gap:8px">
+      <button class="primary" style="flex:2" onclick="addMeal()">Add to today</button>
+      <button class="ghost" style="flex:1" onclick="saveFood()">★ Save</button>
+    </div>
   </div>
 
   <h3 class="sec">Logged</h3>`;
@@ -522,6 +534,16 @@ function addMeal(){ const name=document.getElementById("mName").value.trim(); if
     carbs:document.getElementById("mCarb").value, fat:document.getElementById("mFat").value, time:Date.now() });
   save(); toast("Food added"); render(); }
 function delMeal(id){ state.meals[mealDate]=(state.meals[mealDate]||[]).filter(m=>m.id!==id); save(); render(); }
+function saveFood(){ const name=document.getElementById("mName").value.trim(); if(!name){ toast("Type a food name to save"); return; }
+  if(!state.savedFoods) state.savedFoods=[];
+  state.savedFoods.push({ id:uid(), name, calories:document.getElementById("mCal").value, protein:document.getElementById("mPro").value, carbs:document.getElementById("mCarb").value, fat:document.getElementById("mFat").value });
+  save(); toast('Saved "'+name+'" to My Foods'); render(); }
+function logSaved(id){ const f=(state.savedFoods||[]).find(x=>x.id===id); if(!f) return;
+  const sel=document.getElementById("mType"); const type=sel?sel.value:"Snack";
+  if(!state.meals[mealDate]) state.meals[mealDate]=[];
+  state.meals[mealDate].push({ id:uid(), type, name:f.name, calories:f.calories, protein:f.protein, carbs:f.carbs, fat:f.fat, time:Date.now() });
+  save(); toast(f.name+" added"); render(); }
+function removeSaved(id){ state.savedFoods=(state.savedFoods||[]).filter(f=>f.id!==id); save(); toast("Removed from My Foods"); render(); }
 
 /* ================= WATER + DRINKS ================= */
 function renderWater(){
@@ -605,7 +627,7 @@ function exportData(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="drive-backup-"+todayKey()+".json"; a.click(); URL.revokeObjectURL(a.href); toast("Backup downloaded"); }
 function importData(ev){ const file=ev.target.files[0]; if(!file) return; const fr=new FileReader();
   fr.onload=()=>{ try{ const d=JSON.parse(fr.result);
-    if(d&&d.weights){ d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; if(d.waterGoal==null)d.waterGoal=2500; if(d.stepGoal==null)d.stepGoal=8000; state=d; save(); toast("Backup loaded"); render(); }
+    if(d&&d.weights){ d.workouts=d.workouts||{}; d.drinks=d.drinks||{}; d.steps=d.steps||{}; d.water=d.water||{}; d.meals=d.meals||{}; d.savedFoods=d.savedFoods||[]; if(d.waterGoal==null)d.waterGoal=2500; if(d.stepGoal==null)d.stepGoal=8000; state=d; save(); toast("Backup loaded"); render(); }
     else toast("That doesn't look like a DRIVE backup"); }catch(e){ toast("Couldn't read that file"); } };
   fr.readAsText(file); }
 function resetAll(){ if(confirm("Erase all data? This can't be undone.")){ localStorage.removeItem(KEY); state=load(); save(); toast("Reset done"); render(); } }
