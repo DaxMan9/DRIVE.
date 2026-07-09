@@ -5,7 +5,7 @@ goals, workouts, meals, hydration and steps — all on-device, no account, no
 backend. Built as a single dependency-free web app, deployed to GitHub Pages,
 and packaged as a native Android app with Capacitor.
 
-**Live demo:** https://daxman9.github.io/drive/  <!-- update if you rename the repo -->
+**Live demo:** (https://daxman9.github.io/DRIVE./)  <!-- update if you rename the repo -->
 
 ![Made with vanilla JS](https://img.shields.io/badge/JavaScript-vanilla-f7df1e)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
